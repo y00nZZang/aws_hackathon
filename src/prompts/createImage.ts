@@ -7,7 +7,7 @@ const default_prompt =
 export const createImage = async (prompt: string) => {
   return openai.images.generate({
     model: 'dall-e-3',
-    prompt: 'prompt',
+    prompt,
     n: 1,
     size: '1024x1024',
   });

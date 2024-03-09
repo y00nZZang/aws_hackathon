@@ -6,6 +6,6 @@ export const client = ky.create({
 });
 
 export const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: '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',
   dangerouslyAllowBrowser: true,
 });

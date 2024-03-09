@@ -7,33 +7,49 @@ import {
   IconButton,
   TextField,
 } from '@mui/material';
-import { create } from 'domain';
 import { ChatCompletionMessageParam } from 'openai/resources';
-import { useStoryQuery } from '../hooks/query/useStoryQuery';
+import { Paragraph } from '../models/Paragraph';
 import { createImage } from '../prompts/createImage';
+import { createParagraph } from '../prompts/createParagraph';
 
 const StoryBoardPage = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const [paragraphs, setParagraphs] = useState<Paragraph[]>([]);
+
   const [sentence, setSentence] = useState<string>('');
 
-  const [imageIndex, setImageIndex] = useState<number>();
+  const [imageIndex, setImageIndex] = useState<number>(0);
 
-  const { mutate: sendMessage, isLoading, data } = useStoryQuery();
-
-  const onClickHandler = () => {
-    sendMessage(sentence);
-  };
-
-  const onClickCreateImage = async (index: number) => {
-    setImageIndex(index);
+  const onClickHandler = async () => {
+    setParagraphs([...paragraphs, { role: 'user', content: sentence }]);
   };
 
   useEffect(() => {
-    if (imageIndex) {
-      createImage(data[imageIndex].content as string).then((res) => {
-        data[imageIndex].image_url = res.data[0].url;
-      });
+    if (paragraphs.length > 0 && paragraphs.length % 2 === 1) {
+      (async () => {
+        setIsLoading(true);
+        const res = await createParagraph(paragraphs);
+        setIsLoading(false);
+        if (res.choices.length > 0) {
+          setParagraphs([...paragraphs, res.choices[0].message]);
+        }
+      })();
     }
-  }, [imageIndex]);
+  }, [paragraphs.length]);
+
+  useEffect(() => {
+    if (paragraphs.length > 0) {
+      (async () => {
+        const res = await createImage(
+          paragraphs[paragraphs.length - 1].content as string,
+        );
+        if (res.data) {
+          paragraphs[paragraphs.length - 1].image_url = res.data[0].url;
+        }
+      })();
+    }
+  }, [paragraphs.length]);
 
   return (
     <div
@@ -54,29 +70,29 @@ const StoryBoardPage = () => {
           position: 'relative',
         }}
       >
-        {data.map((message: ChatCompletionMessageParam, index: number) => (
+        {paragraphs.map((paragraph: Paragraph, index: number) => (
           <Box
             key={index}
             sx={{
               display: 'flex',
               justifyContent:
-                message.role === 'user' ? 'flex-end' : 'flex-start',
+                paragraph.role === 'user' ? 'flex-end' : 'flex-start',
               p: 2,
             }}
             onClick={() => {
-              onClickCreateImage(index);
+              setImageIndex(index);
             }}
           >
             <Box
               sx={{
                 maxWidth: '80%',
                 backgroundColor:
-                  message.role === 'user' ? 'lightgreen' : 'lightblue',
+                  paragraph.role === 'user' ? 'lightgreen' : 'lightblue',
                 borderRadius: 2,
                 p: 2,
               }}
             >
-              {message.content as string}
+              {paragraph.content as string}
             </Box>
           </Box>
         ))}
@@ -108,18 +124,18 @@ const StoryBoardPage = () => {
           )}
         </Box>
       </Card>
-      {imageIndex !== undefined && data[imageIndex]?.image_url && (
+      {imageIndex !== undefined && paragraphs[imageIndex]?.image_url && (
         <Card
+          square
           sx={{
-            width: '40%',
-            height: '100%',
+            width: '55%',
             borderRadius: 10,
             position: 'relative',
-            marginLeft: '20px',
           }}
+          elevation={0}
         >
           <img
-            src={data[imageIndex].image_url}
+            src={paragraphs[imageIndex].image_url}
             alt="Generated"
             style={{ width: '100%', height: '100%' }}
           />
